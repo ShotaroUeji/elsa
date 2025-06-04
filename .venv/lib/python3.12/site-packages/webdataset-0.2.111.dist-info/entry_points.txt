@@ -1,0 +1,2 @@
+[console_scripts]
+widsindex = wids.wids_index:main

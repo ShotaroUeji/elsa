@@ -1,0 +1,6 @@
+torch>=2.2.0
+torchaudio>=2.2.0
+pytorch-lamb>=0.1.0
+pandas>=2.0.0
+wandb>=0.16.0
+

@@ -1,0 +1,1 @@
+/home/takamichi-lab-pc09/SpatialLibriSpeech/metadata_clean.csv
