@@ -2,6 +2,3 @@ takamichi09/
 metadata.parquet
 .venv/
 *.ckpt
-SpatialLibriSpeech/meta/metadata_clean_train.csv
-SpatialLibriSpeech/trimmed＿first10sec_metadata.csv
-SpatialLibriSpeech/first10sec_metadata_fixed.csv
