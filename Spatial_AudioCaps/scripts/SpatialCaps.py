@@ -17,7 +17,7 @@ import os
 import openai
 
 # ↓ここから追加！─────────────────────────────
-def load_api_key(path="openai_api_key.txt"):
+def load_api_key(path="Spatial_AudioCaps/openai_api_key.txt"):
     with open(path, "r", encoding="utf-8") as f:
         return f.read().strip()
 openai.api_key = load_api_key()  # txtからAPIキーを読み込む

@@ -63,7 +63,8 @@ class SpatialAttributesBranch(nn.Module):
             nn.Linear(hidden1, hidden2), nn.ELU(),
             nn.Linear(hidden2, out_dim)
         )
-
+    
     def forward(self, I_act, I_rea):
         z = torch.cat([self.act(I_act), self.rea(I_rea)], dim=1)  # (B,2400)
         return self.mlp(z)
+

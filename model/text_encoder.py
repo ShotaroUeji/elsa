@@ -33,6 +33,7 @@ class TextEncoder(nn.Module):
         x = self.proj1(pooled)
         x = self.reru(x)
         x = self.proj2(x)
+        print(f"output shape: {x.shape}")
         return x
     
 
@@ -42,4 +43,5 @@ if __name__ == "__main__":
     encoder = TextEncoder()
     texts = ["Hello, world!","da"]
     embeddings = encoder(texts)
+    print(embeddings.shape)  # Should print (batch_size, output_dim)
     print(embeddings)  # Should print (batch_size, output_dim)

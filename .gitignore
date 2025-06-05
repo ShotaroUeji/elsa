@@ -1,2 +1,4 @@
 takamichi09/
 metadata.parquet
+.venv/
+*.ckpt
