@@ -29,11 +29,11 @@ class TextEncoder(nn.Module):
             truncation=True
         ).to(self.roberta.device)
         pooled = self.roberta(**inputs).pooler_output
-        print(f"pooled shape: {pooled.shape}")
+        #print(f"pooled shape: {pooled.shape}")
         x = self.proj1(pooled)
         x = self.reru(x)
         x = self.proj2(x)
-        print(f"output shape: {x.shape}")
+        #print(f"output shape: {x.shape}")
         return x
     
 

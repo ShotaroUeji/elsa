@@ -26,7 +26,7 @@ class HTSAT(nn.Module):
         # 1. CLAP Processor は “1次元波形のリスト” を期待するので、まず GPU→CPU→NumPy にする
         # ----------------------------------------------------------------------------
         # omni_wave: (B, L) の CUDA テンソルとして渡される想定
-        print(f"[Debug] omni_wave: shape={tuple(omni_wave.shape)}, device={omni_wave.device}")
+        #print(f"[Debug] omni_wave: shape={tuple(omni_wave.shape)}, device={omni_wave.device}")
         batch_size = omni_wave.size(0)
         # (B,) の Python list をつくる
         raw_list: List[np.ndarray] = []
@@ -46,14 +46,14 @@ class HTSAT(nn.Module):
             truncation="max_length",   # 10秒を超える場合は切り捨て
             max_length=480_000
         )
-        for k, v in inputs.items():
-            print(f"[Debug] inputs['{k}']: shape={tuple(v.shape)}, device={v.device}")
+        #for k, v in inputs.items():
+         #   print(f"[Debug] inputs['{k}']: shape={tuple(v.shape)}, device={v.device}")
         # ----------------------------------------------------------------------------
         # 3. processor の出力（CPU上のTensor群）を GPU に移してからモデルに渡す
         # ----------------------------------------------------------------------------
         device = omni_wave.device  # 元のミニバッチと同じデバイス（おそらく cuda）を取得
         inputs = {k: v.to(device) for k, v in inputs.items()}
-        print(f"inputs: {inputs.keys()}")  # 確認用
+        #print(f"inputs: {inputs.keys()}")  # 確認用
         # ----------------------------------------------------------------------------
         # 4. モデルで推論して埋め込みを取得 (B, 512)
         # ----------------------------------------------------------------------------

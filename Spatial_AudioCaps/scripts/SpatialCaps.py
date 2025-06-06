@@ -114,7 +114,7 @@ def rewrite_spatial_caption(original, meta):
 
     # Call OpenAI Chat API (v1.0+ interface)
     response = openai.chat.completions.create(
-        model='gpt-4o',
+        model='gpt-4.1-nano-2025-04-14',
         messages=[
             {'role': 'user', 'content': prompt}
         ],

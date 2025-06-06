@@ -14,6 +14,7 @@ python train.py \
   --csv /data/captions.csv \
   --audio_dir /data/foa_flac \
   --epochs 20 --batch 64 --lr 1e-4 --out ./ckpt
+  takamichi-lab-pc09@takamichi-lab-pc09:~/elsa$ python3 model/train.py --csv Spatial_AudioCaps --audio_dir Spatial_AudioCaps/takamichi09/SpatialAudioCaps/foa --batch 64 --epochs 40 
 """
 from __future__ import annotations
 
@@ -63,22 +64,6 @@ def l2_normalize(x: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
     return F.normalize(x, p=2.0, dim=-1, eps=eps)
 
 
-def forward_audio(audio_encoder: AudioEncoder,
-                  I_act: torch.Tensor,
-                  I_rea: torch.Tensor,
-                  omni: torch.Tensor,
-                  device: torch.device) -> torch.Tensor:
-    """Encode the *entire batch* of audio."""
-    with autocast(enabled=device.type == "cuda"):
-        return audio_encoder(I_act.to(device), I_rea.to(device), omni.to(device))  # (B,512)
-
-
-def forward_text(text_encoder: TextEncoder,
-                 captions: List[str],
-                 device: torch.device) -> torch.Tensor:
-    with autocast(enabled=device.type == "cuda"):
-        return text_encoder(captions).to(device)   # (B,512)
-
 # -------------------- Training loop --------------------
 
 #https://amaarora.github.io/posts/2023-03-11_Understanding_CLIP_part_2.html?utm_source=chatgpt.comを真似した
@@ -103,6 +88,48 @@ def info_nce_loss(audio_embeds: torch.Tensor,
 
 # --------------------------- train -----------------------------------------
 
+def val_one_epoch(model_a: AudioEncoder,
+                 model_t: TextEncoder,
+                 loader: DataLoader,
+                 optimizer,
+                 scaler,
+                 device,
+                 logit_scale: torch.nn.Parameter,
+                 epoch: int,
+                 ) -> None:
+    model_a.eval(); model_t.eval()
+    epoch_loss, epoch_a2t, epoch_t2a = 0.0, 0.0, 0.0
+    count = 0
+
+    with torch.no_grad():
+        for step, (I_act, I_rea, omni, caps) in enumerate(loader):
+            I_act = I_act.to(device)
+            I_rea = I_rea.to(device)
+            omni  = omni.to(device)
+            a_emb = model_a(I_act, I_rea, omni)    # (B,512)
+            t_emb = model_t(caps)                   # (B,512)
+            loss_dict = info_nce_loss(a_emb, t_emb, logit_scale)
+            total_loss = loss_dict['total_loss']
+            loss_a2t = loss_dict['loss_a2t']
+            loss_t2a = loss_dict['loss_t2a']  
+            epoch_loss += total_loss.item()
+            epoch_a2t += loss_a2t.item()
+            epoch_t2a += loss_t2a.item()
+            count += 1 
+    wandb.log({
+    'val/epoch_loss': epoch_loss / count,
+    'val/epoch_loss_a2t': epoch_a2t / count,
+    'val/epoch_loss_t2a': epoch_t2a / count,
+    'val/logit_scale': logit_scale.item(),
+    'val/epoch': epoch,
+    })
+
+    return None
+    
+    
+
+
+
 def train_one_epoch(model_a: AudioEncoder,
                     model_t: TextEncoder,
                     loader: DataLoader,
@@ -115,8 +142,10 @@ def train_one_epoch(model_a: AudioEncoder,
     model_a.train(); model_t.train()
     running_loss, running_a2t, running_t2a = 0.0, 0.0, 0.0
     epoch_loss =0
+    epoch_a2t = 0.0
+    epoch_t2a = 0.0
     count = 0
-    print(f"count1:{count}")
+
     
     for step, (I_act, I_rea, omni, caps) in enumerate(loader):
         I_act = I_act.to(device)
@@ -138,23 +167,29 @@ def train_one_epoch(model_a: AudioEncoder,
         # running stats
         running_loss += total_loss.item(); running_a2t += loss_a2t.item(); running_t2a += loss_t2a.item()
         epoch_loss += total_loss.item()
+        epoch_a2t += loss_a2t.item()
+        epoch_t2a += loss_t2a.item()
         count += 1
-        print(f"count2:{count}")
+    
         if (step + 1) % log_interval == 0:
             avg_loss = running_loss / log_interval
             avg_a2t = running_a2t / log_interval
             avg_t2a = running_t2a / log_interval
+            lr = optim.param_groups[0]['lr']
             wandb.log({
                 'train/loss': avg_loss,
                 'train/loss_a2t': avg_a2t,
                 'train/loss_t2a': avg_t2a,
-                'train/logit_scale': logit_scale.exp().item(),
-                'train/step': epoch * len(loader) + step
+                'train/logit_scale': logit_scale.item(),
+                'lr': lr
             })
             running_loss = running_a2t = running_t2a = 0.0
-    print(f"count3:{count}")
+
     wandb.log({
         'train/epoch_loss': epoch_loss / count,
+        'train/epoch_loss_a2t': epoch_a2t / count,
+        'train/epoch_loss_t2a': epoch_t2a / count,
+        'train/logit_scale': logit_scale.item(),
         'train/epoch': epoch
     })
     return epoch_loss / count
@@ -164,9 +199,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--csv", required=True)
     parser.add_argument("--audio_dir", required=True)
-    parser.add_argument("--epochs", type=int, default=20)
-    parser.add_argument("--batch", type=int, default=4)
-    parser.add_argument("--lr", type=float, default=1e-5)
+    parser.add_argument("--epochs", type=int, default=40)
+    parser.add_argument("--batch", type=int, default=64)
+    parser.add_argument("--lr", type=float, default=5 * 1e-5)
     parser.add_argument("--out", type=str, default="./ckpt")
     parser.add_argument("--wandb" ,type=str, default = "elsa")
     args = parser.parse_args()
@@ -175,9 +210,14 @@ def main():
     seed_everything()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    ds = FOADatasetWithIV(args.audio_dir, args.csv)
-    dl = DataLoader(ds, batch_size=args.batch, shuffle=True,
-                    num_workers=4, collate_fn=collate_fn, pin_memory=True, drop_last=True)
+    train_ds = FOADatasetWithIV(f"{args.audio_dir}/train", f"{args.csv}/manifest_train.csv")  # labels cols fixed inside dataset
+    train_dl = DataLoader(train_ds, batch_size=args.batch, shuffle=True,
+                    num_workers=4, collate_fn=collate_fn, pin_memory=False, drop_last=True)
+    
+    val_ds = FOADatasetWithIV(f"{args.audio_dir}/val", f"{args.csv}/manifest_val.csv")  # labels cols fixed inside dataset
+    val_dl = DataLoader(val_ds, batch_size=args.batch, shuffle=False,
+                    num_workers=4, collate_fn=collate_fn, pin_memory=False, drop_last=False)
+    
 
     model_audio = AudioEncoder().to(device)
     model_text = TextEncoder().to(device)
@@ -188,7 +228,7 @@ def main():
 
     optimizer = torch.optim.Adam(
         list(model_audio.parameters()) + list(model_text.parameters()) + [logit_scale],
-        lr=args.lr, weight_decay=1e-2)
+        lr=args.lr)
     scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
     scaler = GradScaler()
     use_wandb = args.wandb is not None
@@ -199,13 +239,17 @@ def main():
 
     best_loss = float("inf")
     log_interval =1
+
     for epoch in range(1, args.epochs + 1):
         logit_scale.to(device)
-        loss = train_one_epoch(model_audio, model_text, dl,
-                               optimizer, scaler, device, logit_scale,epoch,log_interval)
+        loss = train_one_epoch(model_audio, model_text, train_dl,
+                              optimizer, scaler, device, logit_scale,epoch,log_interval)
         scheduler.step()
-        print(f"[Epoch {epoch}/{args.epochs}] loss={loss:.4f}")
-
+        print(f"[Epoch {epoch}/{args.epochs}] train_loss={loss:.4f}")
+        #print(f"[Epoch {epoch}/{args.epochs}] train_loss={12:.4f}")
+        val_one_epoch(model_audio, model_text, val_dl, optimizer, scaler, device, logit_scale,
+                        epoch)
+        
         # Save checkpoint
         torch.save({
             "audio": model_audio.state_dict(),
@@ -214,7 +258,7 @@ def main():
             "optimizer": optimizer.state_dict(),
             "epoch": epoch,
             "loss": loss,
-        }, Path("/home/takamichi-lab-pc09/elsa/ckpt/takamichi09/elsa") / f"epoch_{epoch:03d}.pt")
+        }, Path("ckpt/takamichi09/elsa_ckpt") / f"epoch_{epoch:03d}.pt")
 
 
 if __name__ == "__main__":

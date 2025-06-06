@@ -72,7 +72,7 @@ def foa_to_iv(
     I_act = torch.stack([(conjW * Y).real, (conjW * Z).real, (conjW * X).real], dim=1)
     I_rea = torch.stack([(conjW * Y).imag, (conjW * Z).imag, (conjW * X).imag], dim=1)
 
-    # Unit‑norm (skip zero‑vectors)
+    # Unit‑norm (skip zero‑vectors)https://github.com/thomeou/SALSA/blob/main/dataset/feature_extraction.py　に揃えたほうがいいかも
     norm = torch.linalg.norm(I_act, dim=1, keepdim=True)  # (B,1,F,N)
     I_act = torch.where(norm > eps, I_act / norm, I_act)
     I_rea = torch.where(norm > eps, I_rea / norm, I_rea)
@@ -107,15 +107,16 @@ class FOADatasetWithIV(Dataset):
         super().__init__()
 
         self.audio_dir = Path(audio_folder)
-        self.meta = pd.read_csv(metadata_csv, dtype={"audio_filename": str, "caption": str})
+        self.meta = pd.read_csv(metadata_csv, dtype={"foa_filename": str, "caption": str})
 
         # Keep only rows whose audio exists.
         valid_idx = []
         for idx, row in self.meta.iterrows():
-            if (self.audio_dir / f"{row['audio_filename']}.wav").is_file():
+            if (self.audio_dir / f"{row['foa_filename']}").is_file():
                 valid_idx.append(idx)
+                #print(f"[Info] Found audio file: {row['foa_filename']}")
             else:
-                print(f"[Warning] Audio file not found, skipping: {row['audio_filename']}.wav")
+                print(f"[Warning] Audio file not found, skipping: {row['foa_filename']}")
         self.meta = self.meta.loc[valid_idx].reset_index(drop=True)
 
         # Pre‑compute lengths
@@ -132,13 +133,13 @@ class FOADatasetWithIV(Dataset):
     # ------------------------------------------------------------------
     def __getitem__(self, idx: int):  # noqa: D401
         row = self.meta.iloc[idx]
-        fname = row["audio_filename"]
+        fname = row["foa_filename"]
         caption_text = row["caption"]
 
         # --------------------------------------------------------------
         # 1) Load FOA audio (expecting 48‑kHz FLAC, 4 channels)
         # --------------------------------------------------------------
-        path = self.audio_dir / f"{fname}.wav"
+        path = self.audio_dir / f"{fname}"
         wav, orig_sr = torchaudio.load(path)  # (4, L_orig)
 
         # Resample to 48 k if necessary
@@ -180,5 +181,5 @@ class FOADatasetWithIV(Dataset):
             hop=self.hop,
         )
         I_act, I_rea = I_act.squeeze(0), I_rea.squeeze(0)  # (3,F,N)
-        print(f"[Info] Loaded {fname}: I_act shape {I_act.shape}, I_rea shape {I_rea.shape}")
+        #print(f"[Info] Loaded {fname}: I_act shape {I_act.shape}, I_rea shape {I_rea.shape}")
         return I_act, I_rea, omni_48k, caption_text

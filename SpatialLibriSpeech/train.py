@@ -48,6 +48,7 @@ ds_val = FOALabeledDataset(f"{args.audio}/first10sec_val", f"{args.meta}/first10
 loader_val = DataLoader(ds_val, batch_size=args.micro_bs, shuffle=False, num_workers=4, pin_memory=False)
 
 
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 # 1) モデル・オプティマイザを復元
 model = SpatialAttributesBranch()
@@ -109,11 +110,11 @@ def calc_loss(y_pred, y_true):
 scaler = GradScaler()
 
 # ----------------- epoch ループ -----------
-steps_per_epoch = 527
-offset_step = 54 * steps_per_epoch
+# steps_per_epoch = 527
+# offset_step = 54 * steps_per_epoch
 
 global_step = offset_step  # 54 epoch までの学習済みステップ数
-for epoch in range(55, args.epochs + 1):
+for epoch in range(1, args.epochs + 1):
     model.train()
     opt.zero_grad(set_to_none=True)
 

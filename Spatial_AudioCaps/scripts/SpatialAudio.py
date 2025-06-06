@@ -3,7 +3,7 @@
    ・RIR は gen_room_pool.py が作った JSON から 1 件取得
    ・split 指定で trainval / test どちらのプールを使うか自動切替
 """
-import random, json, yaml, math, sys
+import random, json, yaml, math, sys, hashlib, shutil
 from pathlib import Path
 import numpy as np, librosa, soundfile as sf
 from scipy.signal import fftconvolve
@@ -123,6 +123,7 @@ def trim_pad(x, fs, min_sec=4.0):
 def spatial_foa(in_wav: Path | str, out_dir: Path, split: Literal["train","val","test"],
                 room_conf=None, stereo_out=False):
     in_wav = Path(in_wav)
+    
     wav, fs = _load_audio(in_wav)
 
     wav = trim_pad(wav, fs)
@@ -185,19 +186,23 @@ def spatial_foa(in_wav: Path | str, out_dir: Path, split: Literal["train","val",
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    sf.write(out_dir/'foa.wav',  foa.T,  fs)
-
-    meta=dict(
-        dims=room_cfg["dims"],
-        area_m2=room_cfg["area_m2"],
-        alpha=float(alpha),
-        fullband_T30_ms=room_cfg["T30_ms"],
-        source_distance_m=round(dist,3),
-        azimuth_deg=round(az_deg,2),
-        elevation_deg=round(el_deg,2),
-        split=split
+    # ─── Save temporary FOA (will be moved by make_pairs) ───
+    sf.write(out_dir / 'foa.wav', foa.T, fs)
+    room_id = hashlib.md5(json.dumps(room_cfg, sort_keys=True).encode()).hexdigest()[:8]
+    meta = dict(
+        dims           = room_cfg["dims"],             # [w,h,H]
+        area_m2        = room_cfg["area_m2"],
+        alpha          = float(alpha),
+        fullband_T30_ms= room_cfg["T30_ms"],
+        source_distance_m = round(dist, 3),
+        azimuth_deg    = round(az_deg, 2),
+        elevation_deg  = round(el_deg, 2),
+        source_pos_xyz = [round(float(v), 3) for v in src],
+        fs             = fs,
+        room_id        = room_id,
+        split          = split
     )
-    Path(out_dir/'meta.yml').write_text(yaml.dump(meta, sort_keys=False))
+    Path(out_dir / 'meta.yml').write_text(yaml.dump(meta, sort_keys=False))
 
 # CLI ≒ quick test
 if __name__=="__main__":
