@@ -182,4 +182,4 @@ class FOADatasetWithIV(Dataset):
         )
         I_act, I_rea = I_act.squeeze(0), I_rea.squeeze(0)  # (3,F,N)
         #print(f"[Info] Loaded {fname}: I_act shape {I_act.shape}, I_rea shape {I_rea.shape}")
-        return I_act, I_rea, omni_48k, caption_text
+        return I_act, I_rea, omni_48k, caption_text, idx
