@@ -2,3 +2,18 @@ takamichi09/
 metadata.parquet
 .venv/
 *.ckpt
+# .gitignore
+
+# wandb (Weights & Biases) のログファイル
+/wandb/
+
+# データセット
+#/SpatialLibriSpeech/
+
+# その他、データセットや成果物が保存されがちなフォルダ
+/data/
+/dataset/
+/output/
+/checkpoints/
+*.csv
+*.patch
