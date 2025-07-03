@@ -180,8 +180,8 @@ def spatial_foa(in_wav: Path | str, out_dir: Path, split: Literal["train","val",
     # ---------- A → B (First-order Ambisonics, FOA) ----------
     W =  (m0 +  m1 +  m2 +  m3)/2
     X =  (m0 +  m1 -  m2 -  m3)/2
-    Y =  (m0 -  m1 -  m2 +  m3)/2
-    Z =  (m0 -  m1 +  m2 -  m3)/2
+    Y =  (m0 -  m1 +  m2 -  m3)/2
+    Z =  (m0 -  m1 -  m2 +  m3)/2
     foa = np.stack([W, Y, Z, X])
 
     out_dir.mkdir(parents=True, exist_ok=True)
